@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PowerShell Signing, Scheduling, and AllSigned Deployment Guide</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a33;
+      --panel-2: #182347;
+      --text: #eef3ff;
+      --muted: #b8c4ea;
+      --accent: #63a4ff;
+      --accent-2: #7ef0c2;
+      --warning: #ffd166;
+      --danger: #ff7b7b;
+      --border: rgba(255,255,255,0.12);
+      --shadow: 0 18px 40px rgba(0,0,0,0.35);
+      --code: #0a1228;
+      --good: #99f6b2;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(126,240,194,0.12), transparent 25%),
+        radial-gradient(circle at top left, rgba(99,164,255,0.16), transparent 30%),
+        linear-gradient(180deg, #09101f 0%, #0e1630 55%, #09101f 100%);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    .progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 4px;
+      width: 0%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      z-index: 9999;
+      box-shadow: 0 0 12px rgba(126,240,194,0.45);
+    }
+
+    header {
+      padding: 56px 20px 28px;
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(135deg, rgba(99,164,255,0.14), rgba(126,240,194,0.08));
+    }
+
+    .wrap {
+      width: min(1200px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .hero-card, .side-card, .card {
+      background: rgba(18, 26, 51, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-card {
+      padding: 28px;
+    }
+
+    .hero h1 {
+      margin: 0 0 14px;
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .hero p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      font-size: 1.03rem;
+    }
+
+    .hero-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .badge {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.14);
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+      font-size: 0.92rem;
+    }
+
+    .home-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      padding: 10px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.13);
+      background: linear-gradient(135deg, rgba(99,164,255,0.18), rgba(126,240,194,0.12));
+      color: var(--text);
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .home-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 26px rgba(99,164,255,0.18);
+      border-color: rgba(126,240,194,0.38);
+    }
+
+    .side-card {
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .side-card h2 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+
+    .side-card p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .quick-links {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .quick-links a,
+    .btn,
+    button.copy-btn,
+    button.download-btn,
+    button.toggle-btn,
+    button.top-btn {
+      appearance: none;
+      border: 1px solid rgba(255,255,255,0.13);
+      background: linear-gradient(135deg, rgba(99,164,255,0.18), rgba(126,240,194,0.12));
+      color: var(--text);
+      text-decoration: none;
+      padding: 12px 14px;
+      border-radius: 16px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .quick-links a:hover,
+    .btn:hover,
+    button.copy-btn:hover,
+    button.download-btn:hover,
+    button.toggle-btn:hover,
+    button.top-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 26px rgba(99,164,255,0.18);
+      border-color: rgba(126,240,194,0.38);
+    }
+
+    nav.sticky {
+      position: sticky;
+      top: 4px;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      background: rgba(11, 16, 32, 0.72);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-inner {
+      width: min(1200px, calc(100% - 32px));
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 12px 0;
+    }
+
+    .nav-inner a {
+      color: var(--muted);
+      text-decoration: none;
+      padding: 10px 12px;
+      border-radius: 12px;
+      transition: 0.2s ease;
+      font-size: 0.95rem;
+      border: 1px solid transparent;
+    }
+
+    .nav-inner a:hover,
+    .nav-inner a.active {
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    main {
+      padding: 28px 0 80px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .toc {
+      position: sticky;
+      top: 78px;
+      padding: 20px;
+    }
+
+    .toc h3 {
+      margin-top: 0;
+      margin-bottom: 14px;
+      font-size: 1.1rem;
+    }
+
+    .toc a {
+      display: block;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 10px 12px;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      border: 1px solid transparent;
+      transition: 0.2s ease;
+      font-size: 0.95rem;
+    }
+
+    .toc a:hover,
+    .toc a.current {
+      color: var(--text);
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    .content {
+      display: grid;
+      gap: 20px;
+    }
+
+    .card {
+      padding: 24px;
+      scroll-margin-top: 86px;
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.35rem, 2.4vw, 2rem);
+    }
+
+    .card h3 {
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 1.08rem;
+      color: var(--text);
+    }
+
+    .card p, .card li {
+      color: var(--muted);
+    }
+
+    .lead {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .callout {
+      border-left: 4px solid var(--accent-2);
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(126,240,194,0.08);
+      margin: 16px 0;
+    }
+
+    .warning {
+      border-left-color: var(--warning);
+      background: rgba(255,209,102,0.08);
+    }
+
+    .danger {
+      border-left-color: var(--danger);
+      background: rgba(255,123,123,0.08);
+    }
+
+    details {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.03);
+      padding: 0;
+      overflow: hidden;
+      margin: 14px 0;
+    }
+
+    summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 18px;
+      font-weight: 700;
+      color: var(--text);
+      background: rgba(255,255,255,0.03);
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    .details-body {
+      padding: 2px 18px 18px;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      background: var(--code);
+      color: #dbe7ff;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 18px;
+      overflow-x: auto;
+      font-size: 0.94rem;
+      line-height: 1.6;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02);
+    }
+
+    code.inline {
+      background: rgba(255,255,255,0.08);
+      padding: 2px 8px;
+      border-radius: 8px;
+      color: var(--text);
+      font-family: Consolas, Monaco, monospace;
+    }
+
+    .code-box {
+      display: grid;
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+
+    .code-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .mini-card {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .mini-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+
+    .checklist {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .checklist label {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+      color: var(--muted);
+    }
+
+    .checklist input { margin-top: 4px; }
+
+    .step-tag {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(99,164,255,0.15);
+      color: #dce8ff;
+      font-size: 0.88rem;
+      border: 1px solid rgba(99,164,255,0.25);
+    }
+
+    .footer-note {
+      text-align: center;
+      color: var(--muted);
+      padding: 28px 20px 50px;
+      border-top: 1px solid var(--border);
+    }
+
+    .top-btn {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 99;
+      display: none;
+    }
+
+    .search-box {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      outline: none;
+    }
+
+    .search-box::placeholder { color: #96a5d3; }
+
+    .muted { color: var(--muted); }
+    .good { color: var(--good); }
+    .warn { color: var(--warning); }
+
+    @media (max-width: 980px) {
+      .hero { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: 1fr; }
+      .toc { position: static; }
+    }
+
+    @media (max-width: 640px) {
+      header { padding-top: 36px; }
+      .hero-card, .side-card, .card { border-radius: 20px; }
+      .nav-inner { overflow-x: auto; flex-wrap: nowrap; }
+      .nav-inner a { white-space: nowrap; }
+      .code-actions { flex-direction: column; }
+      .quick-links { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress" id="progressBar"></div>
+
+  <header>
+    <div class="wrap hero">
+      <a href="https://umeraio.github.io/Tools-Downloads/" class="home-btn">🏠 Home</a>
+      <section class="hero-card">
+        <div class="step-tag">Interactive HTML Guide</div>
+        <h1>PowerShell Signing, Scheduling, and AllSigned Deployment Guide</h1>
+        <p>This ready to use website includes the full step by step guide for checking running PowerShell scripts, reviewing scheduled tasks, locating script paths, creating a code signing certificate, signing scripts, verifying signatures, trusting the certificate, registering professional scheduled tasks with AllSigned, adding a new one time task, and deploying trust across a 6 PC setup.</p>
+        <p class="lead">Everything below is integrated into one structured, user friendly page with clickable navigation, collapsible steps, and download buttons for every script block.</p>
+        <div class="hero-badges">
+          <span class="badge">Modern responsive layout</span>
+          <span class="badge">Copy and download code</span>
+          <span class="badge">Step by step flow</span>
+          <span class="badge">All content preserved</span>
+        </div>
+      </section>
+      <aside class="side-card">
+        <h2>Start Here</h2>
+        <p>Use the quick links to jump through the guide. Each step includes the exact instructions, the matching PowerShell block, and a download button.</p>
+        <div class="quick-links">
+          <a href="#part1">View running scripts</a>
+          <a href="#part6">Find scheduled script paths</a>
+          <a href="#part7">Create the certificate</a>
+          <a href="#part14">Register tasks professionally</a>
+          <a href="#part16">Add a script to run in 3 days</a>
+          <a href="#part18">Trust certificate on other PCs</a>
+        </div>
+      </aside>
+    </div>
+  </header>
+
+  <nav class="sticky">
+    <div class="nav-inner">
+      <a href="#overview">Overview</a>
+      <a href="#part1">Part 1</a>
+      <a href="#part2">Part 2</a>
+      <a href="#part6">Part 6</a>
+      <a href="#part7">Part 7</a>
+      <a href="#part14">Part 14</a>
+      <a href="#part16">Part 16</a>
+      <a href="#part20">Summary</a>
+      <a href="#reference">Reference Commands</a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="wrap grid">
+      <aside class="toc card">
+        <h3>Guide Navigation</h3>
+        <input id="searchInput" class="search-box" type="text" placeholder="Filter sections or keywords" />
+        <div id="tocLinks">
+          <a href="#overview">Overview</a>
+          <a href="#part1">Part 1 - Check running PowerShell scripts</a>
+          <a href="#part2">Part 2 - View scheduled tasks</a>
+          <a href="#part3">Part 3 - Use Task Scheduler GUI</a>
+          <a href="#part4">Part 4 - Why this matters before AllSigned</a>
+          <a href="#part5">Part 5 - Immediate to do list</a>
+          <a href="#part6">Part 6 - Find exact script paths</a>
+          <a href="#part7">Part 7 - Create the certificate</a>
+          <a href="#part8">Part 8 - Sign your 3 main scripts</a>
+          <a href="#part9">Part 9 - Alternative bulk signing</a>
+          <a href="#part10">Part 10 - Verify signature results</a>
+          <a href="#part11">Part 11 - Export the certificate</a>
+          <a href="#part12">Part 12 - Trust certificate locally</a>
+          <a href="#part13">Part 13 - Update task arguments</a>
+          <a href="#part14">Part 14 - Automated task registration</a>
+          <a href="#part15">Part 15 - Missed run explanation</a>
+          <a href="#part16">Part 16 - Add new script for 3 days</a>
+          <a href="#part17">Part 17 - Copy certificate to 5 PCs</a>
+          <a href="#part18">Part 18 - Import and trust on other PCs</a>
+          <a href="#part19">Part 19 - Final verification</a>
+          <a href="#part20">Part 20 - Final professional workflow summary</a>
+          <a href="#reference">Part 21 - Clean reference commands only</a>
+          <a href="#notes">Original content preservation notes</a>
+        </div>
+      </aside>
+
+      <section class="content" id="contentArea">
+        <article class="card section" id="overview" data-search="overview guide powershell signing scheduling allsigned certificate scripts task scheduler">
+          <h2>Complete Step by Step Guide</h2>
+          <p class="lead">Managing Running PowerShell Scripts, Scheduled Tasks, Code Signing, AllSigned Setup, and Deploying to 6 PCs</p>
+          <p>This guide shows you how to:</p>
+          <ol>
+            <li>Check how many PowerShell scripts are currently running</li>
+            <li>Find scheduled PowerShell tasks</li>
+            <li>Identify the exact script paths used by those tasks</li>
+            <li>Create a code-signing certificate</li>
+            <li>Sign your scripts</li>
+            <li>Verify signatures</li>
+            <li>Export and trust the certificate</li>
+            <li>Register professional scheduled tasks with <code class="inline">AllSigned</code></li>
+            <li>Add a new one-time task for a script that should run in 3 days</li>
+            <li>Deploy trust to the other 5 PCs in your 6-PC setup</li>
+          </ol>
+          <div class="meta-grid">
+            <div class="mini-card"><strong>Visually appealing</strong><span>Modern dark professional design with clear cards, hover effects, and polished code blocks.</span></div>
+            <div class="mini-card"><strong>Interactive</strong><span>Sticky navigation, search filter, collapsible content, copy buttons, and script downloads.</span></div>
+            <div class="mini-card"><strong>Easy to follow</strong><span>Every part is separated clearly and written for users of all levels.</span></div>
+            <div class="mini-card"><strong>Complete</strong><span>No script or instruction from the guide content is omitted.</span></div>
+          </div>
+        </article>
+
+        <article class="card section" id="part1" data-search="part 1 check running scripts powershell pwsh ciminstance processid commandline">
+          <h2>Part 1 - Check How Many PowerShell Scripts Are Currently Running</h2>
+          <p>Use this command to see all currently running PowerShell processes:</p>
+          <div class="code-box">
+            <pre id="code-running">Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe' OR Name = 'pwsh.exe'" |
+Select-Object ProcessId, CommandLine |
+Format-Table -AutoSize</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-running">Copy code</button>
+              <button class="download-btn" data-filename="01-view-running-powershell-processes.ps1" data-target="code-running">Download script</button>
+            </div>
+          </div>
+          <h3>What this does</h3>
+          <ul>
+            <li>Shows all running instances of <code class="inline">powershell.exe</code></li>
+            <li>Shows all running instances of <code class="inline">pwsh.exe</code></li>
+            <li>Displays Process ID and full command line used to launch the script</li>
+          </ul>
+          <p>This helps you see which scripts are currently active on the PC.</p>
+        </article>
+
+        <article class="card section" id="part2" data-search="part 2 list scheduled tasks using powershell last run next run number of missed runs">
+          <h2>Part 2 - View Scheduled Tasks That Use PowerShell</h2>
+          <h3>Option A - Use PowerShell to List Scheduled Tasks</h3>
+          <p>This is the fastest way to see which scheduled tasks are set to run PowerShell scripts.</p>
+          <div class="code-box">
+            <pre id="code-listtasks">Get-ScheduledTask |
+Where-Object { $_.Actions.Execute -match "powershell" } |
+Select-Object TaskName, TaskPath, State |
+Format-Table -AutoSize</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-listtasks">Copy code</button>
+              <button class="download-btn" data-filename="02-list-scheduled-powershell-tasks.ps1" data-target="code-listtasks">Download script</button>
+            </div>
+          </div>
+          <h3>What this shows</h3>
+          <ul>
+            <li>Task name</li>
+            <li>Task path</li>
+            <li>Current state</li>
+          </ul>
+
+          <h3>Option B - See Last Run Time and Next Run Time</h3>
+          <p>If you want to know when the tasks last ran and when they will run next:</p>
+          <div class="code-box">
+            <pre id="code-lastrun">Get-ScheduledTask |
+Where-Object { $_.Actions.Execute -match "powershell" } |
+ForEach-Object {
+    $task = $_
+    $info = $task | Get-ScheduledTaskInfo
+    [PSCustomObject]@{
+        TaskName           = $task.TaskName
+        TaskPath           = $task.TaskPath
+        LastRunTime        = $info.LastRunTime
+        NextRunTime        = $info.NextRunTime
+        NumberOfMissedRuns = $info.NumberOfMissedRuns
+    }
+} |
+Format-Table -AutoSize</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-lastrun">Copy code</button>
+              <button class="download-btn" data-filename="03-show-last-and-next-run-time.ps1" data-target="code-lastrun">Download script</button>
+            </div>
+          </div>
+          <h3>What this shows</h3>
+          <ul>
+            <li>Task name</li>
+            <li>Task path</li>
+            <li>Last run time</li>
+            <li>Next run time</li>
+            <li>Number of missed runs</li>
+          </ul>
+          <p>This is useful for spotting tasks due to run in the next few days.</p>
+        </article>
+
+        <article class="card section" id="part3" data-search="part 3 task scheduler gui visual interface actions tab next run time">
+          <h2>Part 3 - Use the Task Scheduler GUI</h2>
+          <p>If you prefer a visual interface:</p>
+          <ol>
+            <li>Click <strong>Start</strong></li>
+            <li>Type <strong>Task Scheduler</strong></li>
+            <li>Press <strong>Enter</strong></li>
+            <li>Click <strong>Task Scheduler Library</strong> in the left pane</li>
+            <li>Look through the list of tasks</li>
+            <li>Check the <strong>Next Run Time</strong> column</li>
+            <li>Double click any task</li>
+            <li>Go to the <strong>Actions</strong> tab</li>
+            <li>Review which <code class="inline">.ps1</code> file the task is pointing to</li>
+          </ol>
+          <p>This is useful when you want to visually inspect the task setup.</p>
+        </article>
+
+        <article class="card section" id="part4" data-search="part 4 allsigned risk unsigned tasks fail on tuesday morning">
+          <h2>Part 4 - Why These Scheduled Scripts Matter Before Enabling AllSigned</h2>
+          <p>If you are about to implement a professional <strong>AllSigned</strong> execution policy, any scheduled script that is <strong>not signed</strong> will fail when Windows tries to run it.</p>
+          <div class="callout danger">
+            <strong>Important warning:</strong> If your scheduled tasks are due to run in 2 or 3 days and you enable <code class="inline">AllSigned</code> now without signing those scripts first, they will fail because Windows will treat them as untrusted.
+          </div>
+          <p>We must sign them immediately. If you enable the AllSigned policy now, these tasks will fail on Tuesday morning because Windows will see them as untrusted.</p>
+        </article>
+
+        <article class="card section" id="part5" data-search="part 5 immediate to do list locate sign check action executionpolicy allsigned missed run">
+          <h2>Part 5 - Your Immediate To Do List</h2>
+          <p>Before enabling <code class="inline">AllSigned</code>, do these things:</p>
+          <div class="checklist">
+            <label><input type="checkbox" /> Locate the scripts</label>
+            <label><input type="checkbox" /> Sign them now</label>
+            <label><input type="checkbox" /> Check the task actions</label>
+            <label><input type="checkbox" /> Ensure the tasks use <code class="inline">-ExecutionPolicy AllSigned</code></label>
+            <label><input type="checkbox" /> Check for missed run settings on security critical tasks</label>
+          </div>
+        </article>
+
+        <article class="card section" id="part6" data-search="part 6 exact script paths taskname winget update incident arguments file">
+          <h2>Part 6 - Find the Exact Script File Paths Used by Scheduled Tasks</h2>
+          <p>The task names alone are not enough. You need the actual <code class="inline">.ps1</code> file paths so you can sign them.</p>
+          <p>Run this:</p>
+          <div class="code-box">
+            <pre id="code-findpaths">Get-ScheduledTask |
+Where-Object { $_.TaskName -match "Winget|Update|Incident" } |
+ForEach-Object {
+    $task = $_
+    foreach ($action in $task.Actions) {
+        [PSCustomObject]@{
+            TaskName = $task.TaskName
+            Execute  = $action.Execute
+            Arguments = $action.Arguments
+        }
+    }
+} |
+Format-List</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-findpaths">Copy code</button>
+              <button class="download-btn" data-filename="04-find-scheduled-script-paths.ps1" data-target="code-findpaths">Download script</button>
+            </div>
+          </div>
+          <h3>What to look for</h3>
+          <p>Look inside the <code class="inline">Arguments</code> field for the part after <code class="inline">-File</code>.</p>
+          <div class="code-box">
+            <pre id="code-examplefile">-File "C:\Scripts\Update.ps1"</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-examplefile">Copy example</button>
+              <button class="download-btn" data-filename="04a-example-file-argument.txt" data-target="code-examplefile">Download example</button>
+            </div>
+          </div>
+          <p>That tells you exactly where the script lives on disk.</p>
+        </article>
+
+        <article class="card section" id="part7" data-search="part 7 create corrected master certificate new-selfsignedcertificate umermalikhomerootca">
+          <h2>Part 7 - Create the Corrected Master Code Signing Certificate</h2>
+          <p>Run this in an <strong>Administrator PowerShell window</strong>:</p>
+          <div class="code-box">
+            <pre id="code-certcreate">$cert = New-SelfSignedCertificate -Type CodeSigningCert `
+    -Subject "CN=UmerMalikHomeRootCA" `
+    -HashAlgorithm "SHA256" `
+    -KeyExportPolicy Exportable `
+    -KeyUsage DigitalSignature, CertSign `
+    -NotAfter (Get-Date).AddYears(10) `
+    -CertStoreLocation "Cert:\CurrentUser\My"
+
+Write-Host "Master Certificate Created Successfully!" -ForegroundColor Green
+Write-Host "Subject: $($cert.Subject)" -ForegroundColor Cyan</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-certcreate">Copy code</button>
+              <button class="download-btn" data-filename="05-create-master-code-signing-certificate.ps1" data-target="code-certcreate">Download script</button>
+            </div>
+          </div>
+          <h3>What this does</h3>
+          <ul>
+            <li>Creates your master code signing certificate</li>
+            <li>Uses SHA256</li>
+            <li>Makes the key exportable</li>
+            <li>Keeps it valid for 10 years</li>
+            <li>Stores it in your personal certificate store</li>
+          </ul>
+        </article>
+
+        <article class="card section" id="part8" data-search="part 8 sign your 3 main scripts scanner winget-update win-update production folder">
+          <h2>Part 8 - Sign Your 3 Main Scripts</h2>
+          <p>Once the certificate exists in your store, sign the scripts.</p>
+          <p>Example folder:</p>
+          <div class="code-box">
+            <pre id="code-folder">C:\scripts\production</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-folder">Copy path</button>
+              <button class="download-btn" data-filename="06-example-script-folder.txt" data-target="code-folder">Download path</button>
+            </div>
+          </div>
+          <p>Example scripts:</p>
+          <ul>
+            <li><code class="inline">scanner.ps1</code></li>
+            <li><code class="inline">Winget-update.ps1</code></li>
+            <li><code class="inline">win-update.ps1</code></li>
+          </ul>
+          <p>Run this:</p>
+          <div class="code-box">
+            <pre id="code-sign3">$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1
+
+$scriptFolder = "C:\scripts\production"
+$myScripts = @(
+    "$scriptFolder\scanner.ps1",
+    "$scriptFolder\Winget-update.ps1",
+    "$scriptFolder\win-update.ps1"
+)
+
+foreach ($path in $myScripts) {
+    if (Test-Path $path) {
+        Write-Host "`nSigning: $path" -ForegroundColor Cyan
+        Set-AuthenticodeSignature -FilePath $path -Certificate $cert -TimestampServer "http://timestamp.digicert.com"
+    } else {
+        Write-Host "`nWARNING: Script file not found at $path" -ForegroundColor Yellow
+    }
+}</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-sign3">Copy code</button>
+              <button class="download-btn" data-filename="07-sign-main-scripts.ps1" data-target="code-sign3">Download script</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card section" id="part9" data-search="part 9 alternative bulk signing update paths winget incident">
+          <h2>Part 9 - Alternative Bulk Signing Example for Different Script Paths</h2>
+          <p>If your scripts are elsewhere, use the same pattern and replace the paths:</p>
+          <div class="code-box">
+            <pre id="code-signalt">$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1
+
+$myScripts = @(
+    "C:\Path\To\Winget-Script.ps1",
+    "C:\Path\To\Update-Script.ps1",
+    "C:\Path\To\Incident-Script.ps1"
+)
+
+foreach ($script in $myScripts) {
+    if (Test-Path $script) {
+        Write-Host "Signing: $script" -ForegroundColor Cyan
+        Set-AuthenticodeSignature -FilePath $script -Certificate $cert -TimestampServer "http://timestamp.digicert.com"
+    } else {
+        Write-Host "File not found: $script" -ForegroundColor Red
+    }
+}</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-signalt">Copy code</button>
+              <button class="download-btn" data-filename="08-alternative-bulk-signing.ps1" data-target="code-signalt">Download script</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card section" id="part10" data-search="part 10 verify signature results get-authenticodesignature valid production folder">
+          <h2>Part 10 - Verify the Signature Results</h2>
+          <p>After signing, check the results.</p>
+          <p>For the production folder:</p>
+          <div class="code-box">
+            <pre id="code-verify">Get-ChildItem "C:\scripts\production\*.ps1" | ForEach-Object {
+    Get-AuthenticodeSignature -FilePath $_.FullName
+} | Format-Table -AutoSize</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-verify">Copy code</button>
+              <button class="download-btn" data-filename="09-verify-script-signatures.ps1" data-target="code-verify">Download script</button>
+            </div>
+          </div>
+          <div class="callout">
+            <strong>What you want to see:</strong> You want the signature status to show as valid once the certificate is trusted properly.
+          </div>
+        </article>
+
+        <article class="card section" id="part11" data-search="part 11 export certificate cer file public key production folder">
+          <h2>Part 11 - Export the Certificate to a File</h2>
+          <p>You must export the certificate so your current PC can trust it fully and the other 5 PCs can trust your signed scripts.</p>
+          <p>Run this on your main PC:</p>
+          <div class="code-box">
+            <pre id="code-export">$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1
+$exportPath = "C:\scripts\production\UmerMalikHomeRoot.cer"
+
+Export-Certificate -Cert $cert -FilePath $exportPath
+
+Write-Host "Certificate exported to $exportPath" -ForegroundColor Green</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-export">Copy code</button>
+              <button class="download-btn" data-filename="10-export-certificate.ps1" data-target="code-export">Download script</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card section" id="part12" data-search="part 12 trust certificate locally localmachine root trustedpublisher">
+          <h2>Part 12 - Trust the Certificate Locally on Your Main PC</h2>
+          <p>This step is required so your own PC sees the signature as trusted.</p>
+          <p>Run:</p>
+          <div class="code-box">
+            <pre id="code-trustlocal">$certFile = "C:\scripts\production\UmerMalikHomeRoot.cer"
+
+Import-Certificate -FilePath $certFile -CertStoreLocation Cert:\LocalMachine\Root
+Import-Certificate -FilePath $certFile -CertStoreLocation Cert:\LocalMachine\TrustedPublisher
+
+Write-Host "Certificate exported and trusted locally!" -ForegroundColor Green</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-trustlocal">Copy code</button>
+              <button class="download-btn" data-filename="11-trust-certificate-locally.ps1" data-target="code-trustlocal">Download script</button>
+            </div>
+          </div>
+          <h3>What this does</h3>
+          <ul>
+            <li>Imports the certificate into Trusted Root Certification Authorities</li>
+            <li>Imports the certificate into Trusted Publishers</li>
+            <li>Tells Windows the certificate authority is trusted</li>
+            <li>Tells Windows scripts signed by that certificate are trusted</li>
+          </ul>
+        </article>
+
+        <article class="card section" id="part13" data-search="part 13 update task action arguments executionpolicy allsigned noprofile task scheduler gui">
+          <h2>Part 13 - Update the Task Action Arguments</h2>
+          <p>For a professional setup, edit each scheduled task so the action uses:</p>
+          <div class="code-box">
+            <pre id="code-args">-ExecutionPolicy AllSigned -File ...</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-args">Copy example</button>
+              <button class="download-btn" data-filename="12-task-argument-example.txt" data-target="code-args">Download example</button>
+            </div>
+          </div>
+          <h3>Using Task Scheduler GUI</h3>
+          <ol>
+            <li>Open <strong>Task Scheduler</strong></li>
+            <li>Right click the task</li>
+            <li>Select <strong>Properties</strong></li>
+            <li>Go to the <strong>Actions</strong> tab</li>
+            <li>Click <strong>Edit</strong></li>
+            <li>In <strong>Add arguments</strong>, make sure it begins with:</li>
+          </ol>
+          <div class="code-box">
+            <pre id="code-argsfull">-NoProfile -ExecutionPolicy AllSigned -File "C:\Path\To\YourScript.ps1"</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-argsfull">Copy example</button>
+              <button class="download-btn" data-filename="12a-full-task-argument-example.txt" data-target="code-argsfull">Download example</button>
+            </div>
+          </div>
+          <p>This ensures the task explicitly checks the script signature when it runs.</p>
+        </article>
+
+        <article class="card section" id="part14" data-search="part 14 professional automated task registration winget windows update incident containment mode 2 system">
+          <h2>Part 14 - Professional Automated Task Registration</h2>
+          <p>Below is the cleaned and organised script to register your three core production tasks.</p>
+          <div class="code-box">
+            <pre id="code-register"># ======================================================================
+# Professional Automated Task Registration
+# ======================================================================
+
+$ScriptDir = "C:\scripts\production"
+$ActionUser = "SYSTEM"
+
+$Tasks = @(
+    @{
+        Name     = "Winget Enterprise Ultimate"
+        File     = "Winget-update.ps1"
+        Schedule = "Weekly"
+        Days     = "Tuesday"
+        At       = "09:00AM"
+        Args     = $null
+    },
+    @{
+        Name     = "Auto Windows Update Script"
+        File     = "win-update.ps1"
+        Schedule = "Weekly"
+        Days     = "Tuesday"
+        At       = "07:00AM"
+        Args     = $null
+    },
+    @{
+        Name     = "IR-IncidentContainment-Mode2"
+        File     = "scanner.ps1"
+        Schedule = "Weekly"
+        Days     = "Wednesday"
+        At       = "06:00AM"
+        Args     = "-Mode 2"
+    }
+)
+
+foreach ($T in $Tasks) {
+    $FullScriptPath = Join-Path $ScriptDir $T.File
+
+    $FullArgs = "-NoProfile -ExecutionPolicy AllSigned -File `"$FullScriptPath`""
+    if ($T.Args) {
+        $FullArgs += " $($T.Args)"
+    }
+
+    $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $FullArgs
+    $Trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek $T.Days -At $T.At
+    $Settings = New-ScheduledTaskSettingsSet `
+        -AllowStartIfOnBatteries `
+        -DontStopIfGoingOnBatteries `
+        -StartWhenAvailable `
+        -RunOnlyIfNetworkAvailable
+
+    try {
+        Register-ScheduledTask -TaskName $T.Name `
+            -Action $Action `
+            -Trigger $Trigger `
+            -Settings $Settings `
+            -User $ActionUser `
+            -RunLevel Highest `
+            -Force
+
+        Write-Host "SUCCESS: Registered $($T.Name)" -ForegroundColor Green
+    } catch {
+        Write-Host "FAILED: Could not register $($T.Name). Error: $($_.Exception.Message)" -ForegroundColor Red
+    }
+}</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-register">Copy code</button>
+              <button class="download-btn" data-filename="13-register-professional-scheduled-tasks.ps1" data-target="code-register">Download script</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card section" id="part15" data-search="part 15 missed run incident containment numberofmissedruns pc was turned off run as soon as possible after missed start">
+          <h2>Part 15 - Why the Incident Task Showed a Missed Run</h2>
+          <p>If <code class="inline">IR-IncidentContainment-Mode2</code> shows:</p>
+          <div class="code-box">
+            <pre id="code-missed">NumberOfMissedRuns = 1</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-missed">Copy text</button>
+              <button class="download-btn" data-filename="14-missed-run-example.txt" data-target="code-missed">Download text</button>
+            </div>
+          </div>
+          <p>this usually means one of these happened:</p>
+          <ul>
+            <li>The PC was turned off at the scheduled time</li>
+            <li>The PC was unavailable at the scheduled time</li>
+            <li>The task was not configured to start after a missed run</li>
+          </ul>
+          <div class="callout warning">
+            <strong>Recommendation:</strong> Open the task settings and enable <strong>Run task as soon as possible after a scheduled start is missed</strong>. This is especially important for security scripts.
+          </div>
+        </article>
+
+        <article class="card section" id="part16" data-search="part 16 add new script run in 3 days backup-files one-time trigger signature first workflow">
+          <h2>Part 16 - Add a New Script That Must Run in 3 Days</h2>
+          <p>If you want to add a new script such as <code class="inline">C:\scripts\production\backup-files.ps1</code> and make it run once in three days, follow this workflow.</p>
+
+          <details open>
+            <summary>Step 1 - Sign the New Script First</summary>
+            <div class="details-body">
+              <p>Because you are using <code class="inline">AllSigned</code>, the script must be signed before scheduling it.</p>
+              <div class="code-box">
+                <pre id="code-signnew">$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1
+Set-AuthenticodeSignature -FilePath "C:\scripts\production\backup-files.ps1" -Certificate $cert -TimestampServer "http://timestamp.digicert.com"</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="code-signnew">Copy code</button>
+                  <button class="download-btn" data-filename="15-sign-new-script.ps1" data-target="code-signnew">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details open>
+            <summary>Step 2 - Register the One Time Task</summary>
+            <div class="details-body">
+              <p>This schedules it to run once, three days from now, at 10:00 AM.</p>
+              <div class="code-box">
+                <pre id="code-onetime">$RunDate = (Get-Date).AddDays(3).Date.AddHours(10)
+
+$FullScriptPath = "C:\scripts\production\backup-files.ps1"
+$Action = New-ScheduledTaskAction -Execute "powershell.exe" `
+    -Argument "-NoProfile -ExecutionPolicy AllSigned -File `"$FullScriptPath`""
+
+$Trigger = New-ScheduledTaskTrigger -Once -At $RunDate
+
+Register-ScheduledTask -TaskName "OneTime-BackupFiles" `
+    -Action $Action `
+    -Trigger $Trigger `
+    -User "SYSTEM" `
+    -RunLevel Highest `
+    -Force
+
+Write-Host "Task registered! It will run on $($RunDate.ToString('dddd, dd MMMM yyyy')) at $($RunDate.ToString('HH:mm'))." -ForegroundColor Green</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="code-onetime">Copy code</button>
+                  <button class="download-btn" data-filename="16-register-one-time-backup-task.ps1" data-target="code-onetime">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details open>
+            <summary>Step 3 - Verify the One Time Schedule</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="code-verifyone">Get-ScheduledTask -TaskName "OneTime-BackupFiles" |
+Get-ScheduledTaskInfo |
+Select-Object LastRunTime, NextRunTime</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="code-verifyone">Copy code</button>
+                  <button class="download-btn" data-filename="17-verify-one-time-task.ps1" data-target="code-verifyone">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <h3>Important Notes for Your 6 PC Setup</h3>
+          <ul>
+            <li>Make sure <code class="inline">backup-files.ps1</code> exists in <code class="inline">C:\scripts\production</code> on all required PCs before registering the task</li>
+            <li>Because the script is signed and the task uses <code class="inline">-ExecutionPolicy AllSigned</code>, it will run properly under the policy</li>
+            <li>A one time task stays in Task Scheduler after it runs, but it will not run again unless triggered again</li>
+          </ul>
+
+          <h3>Optional cleanup</h3>
+          <p>If you want the task to delete itself after running, you can add a settings block when registering it:</p>
+          <div class="code-box">
+            <pre id="code-cleanup">$Settings = New-ScheduledTaskSettingsSet -DeleteExpiredTaskAfter (New-TimeSpan -Seconds 0)</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-cleanup">Copy code</button>
+              <button class="download-btn" data-filename="17a-one-time-task-cleanup-option.ps1" data-target="code-cleanup">Download script</button>
+            </div>
+          </div>
+          <p>Then include <code class="inline">-Settings $Settings</code> in the <code class="inline">Register-ScheduledTask</code> command.</p>
+        </article>
+
+        <article class="card section" id="part17" data-search="part 17 copy certificate to other 5 pcs chain of trust public key private key transfer methods">
+          <h2>Part 17 - Copy the Certificate to the Other 5 PCs</h2>
+          <p>To make the other 5 PCs trust your signed scripts, you must copy the <strong>public certificate</strong> file, not the private key.</p>
+          <h3>Chain of trust</h3>
+          <ul>
+            <li><strong>Main PC</strong> = holds the private key and signs scripts</li>
+            <li><strong>.cer file</strong> = contains the public key and verifies signatures</li>
+            <li><strong>Other 5 PCs</strong> = trust the public certificate so they accept your signed scripts</li>
+          </ul>
+          <h3>Transfer Methods</h3>
+          <p>You can move the <code class="inline">.cer</code> file by:</p>
+          <ul>
+            <li>USB drive</li>
+            <li>Network share</li>
+            <li>Cloud storage such as OneDrive, Google Drive, or Dropbox</li>
+          </ul>
+          <p>Example certificate file:</p>
+          <div class="code-box">
+            <pre id="code-cerpath">C:\scripts\production\UmerMalikHomeRoot.cer</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-cerpath">Copy path</button>
+              <button class="download-btn" data-filename="18-certificate-file-path.txt" data-target="code-cerpath">Download text</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card section" id="part18" data-search="part 18 import and trust certificate on other pcs administrator trusted root trusted publisher">
+          <h2>Part 18 - Import and Trust the Certificate on the Other 5 PCs</h2>
+          <p>Run this as <strong>Administrator</strong> on each of the other PCs:</p>
+          <div class="code-box">
+            <pre id="code-importother">$certFile = "C:\scripts\production\UmerMalikHomeRoot.cer"
+
+if (Test-Path $certFile) {
+    Import-Certificate -FilePath $certFile -CertStoreLocation Cert:\LocalMachine\Root
+    Import-Certificate -FilePath $certFile -CertStoreLocation Cert:\LocalMachine\TrustedPublisher
+
+    Write-Host "Success! This PC now trusts your signed scripts." -ForegroundColor Green
+} else {
+    Write-Host "Error: Certificate file not found at $certFile" -ForegroundColor Red
+}</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-importother">Copy code</button>
+              <button class="download-btn" data-filename="19-import-and-trust-certificate-on-other-pcs.ps1" data-target="code-importother">Download script</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="card section" id="part19" data-search="part 19 final verification valid signatures allsigned ready to enable">
+          <h2>Part 19 - Final Verification on Every PC</h2>
+          <p>After importing the certificate on each PC, run a signature check on the scripts that were copied over.</p>
+          <p>Example:</p>
+          <div class="code-box">
+            <pre id="code-finalverify">Get-ChildItem "C:\scripts\production\*.ps1" | ForEach-Object {
+    Get-AuthenticodeSignature -FilePath $_.FullName
+} | Format-Table -AutoSize</pre>
+            <div class="code-actions">
+              <button class="copy-btn" data-target="code-finalverify">Copy code</button>
+              <button class="download-btn" data-filename="20-final-signature-verification.ps1" data-target="code-finalverify">Download script</button>
+            </div>
+          </div>
+          <div class="callout">
+            <strong>Expected result:</strong> If the trust chain is correct, the scripts should show as <strong>Valid</strong>. Once you see that, you are ready to enforce <code class="inline">AllSigned</code>.
+          </div>
+        </article>
+
+        <article class="card section" id="part20" data-search="part 20 final workflow summary discovery certificate setup signing scheduled tasks multi-pc trust">
+          <h2>Part 20 - Final Professional Workflow Summary</h2>
+          <p>Here is the correct order to follow:</p>
+          <h3>Stage 1 - Discovery</h3>
+          <ol>
+            <li>Check running PowerShell scripts</li>
+            <li>List scheduled PowerShell tasks</li>
+            <li>Review last and next run times</li>
+            <li>Find the exact <code class="inline">.ps1</code> paths used by the tasks</li>
+          </ol>
+          <h3>Stage 2 - Certificate Setup</h3>
+          <ol start="5">
+            <li>Create the master code signing certificate</li>
+            <li>Export the certificate to a <code class="inline">.cer</code> file</li>
+            <li>Trust it locally on your main PC</li>
+          </ol>
+          <h3>Stage 3 - Signing</h3>
+          <ol start="8">
+            <li>Sign the three main scripts</li>
+            <li>Sign any new script before scheduling it</li>
+            <li>Verify the signature results</li>
+          </ol>
+          <h3>Stage 4 - Scheduled Tasks</h3>
+          <ol start="11">
+            <li>Update or recreate scheduled tasks using <code class="inline">powershell.exe</code>, <code class="inline">-NoProfile</code>, <code class="inline">-ExecutionPolicy AllSigned</code>, and <code class="inline">-File "path\to\script.ps1"</code></li>
+            <li>Make sure important security tasks use <strong>Run task as soon as possible after a scheduled start is missed</strong></li>
+          </ol>
+          <h3>Stage 5 - Multi PC Trust</h3>
+          <ol start="13">
+            <li>Copy the <code class="inline">.cer</code> file to the other 5 PCs</li>
+            <li>Import it into <code class="inline">Cert:\LocalMachine\Root</code> and <code class="inline">Cert:\LocalMachine\TrustedPublisher</code></li>
+            <li>Verify the scripts show as <strong>Valid</strong></li>
+          </ol>
+        </article>
+
+        <article class="card section" id="reference" data-search="part 21 clean reference commands only running scripts list tasks create certificate sign export trust verify">
+          <h2>Part 21 - Clean Reference Commands Only</h2>
+
+          <details>
+            <summary>See running PowerShell scripts</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="ref1">Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe' OR Name = 'pwsh.exe'" |
+Select-Object ProcessId, CommandLine |
+Format-Table -AutoSize</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="ref1">Copy code</button>
+                  <button class="download-btn" data-filename="ref-01-running-powershell-scripts.ps1" data-target="ref1">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>List scheduled PowerShell tasks</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="ref2">Get-ScheduledTask |
+Where-Object { $_.Actions.Execute -match "powershell" } |
+Select-Object TaskName, TaskPath, State |
+Format-Table -AutoSize</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="ref2">Copy code</button>
+                  <button class="download-btn" data-filename="ref-02-list-scheduled-powershell-tasks.ps1" data-target="ref2">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Show last run and next run</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="ref3">Get-ScheduledTask |
+Where-Object { $_.Actions.Execute -match "powershell" } |
+ForEach-Object {
+    $task = $_
+    $info = $task | Get-ScheduledTaskInfo
+    [PSCustomObject]@{
+        TaskName           = $task.TaskName
+        TaskPath           = $task.TaskPath
+        LastRunTime        = $info.LastRunTime
+        NextRunTime        = $info.NextRunTime
+        NumberOfMissedRuns = $info.NumberOfMissedRuns
+    }
+} |
+Format-Table -AutoSize</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="ref3">Copy code</button>
+                  <button class="download-btn" data-filename="ref-03-show-last-and-next-run.ps1" data-target="ref3">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Reveal task action arguments and script paths</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="ref4">Get-ScheduledTask |
+Where-Object { $_.TaskName -match "Winget|Update|Incident" } |
+ForEach-Object {
+    $task = $_
+    foreach ($action in $task.Actions) {
+        [PSCustomObject]@{
+            TaskName  = $task.TaskName
+            Execute   = $action.Execute
+            Arguments = $action.Arguments
+        }
+    }
+} |
+Format-List</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="ref4">Copy code</button>
+                  <button class="download-btn" data-filename="ref-04-reveal-task-arguments-and-paths.ps1" data-target="ref4">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Create certificate</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="ref5">$cert = New-SelfSignedCertificate -Type CodeSigningCert `
+    -Subject "CN=UmerMalikHomeRootCA" `
+    -HashAlgorithm "SHA256" `
+    -KeyExportPolicy Exportable `
+    -KeyUsage DigitalSignature, CertSign `
+    -NotAfter (Get-Date).AddYears(10) `
+    -CertStoreLocation "Cert:\CurrentUser\My"</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="ref5">Copy code</button>
+                  <button class="download-btn" data-filename="ref-05-create-certificate.ps1" data-target="ref5">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Sign scripts</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="ref6">$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1
+Set-AuthenticodeSignature -FilePath "C:\scripts\production\backup-files.ps1" -Certificate $cert -TimestampServer "http://timestamp.digicert.com"</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="ref6">Copy code</button>
+                  <button class="download-btn" data-filename="ref-06-sign-script.ps1" data-target="ref6">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Export certificate</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="ref7">$cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1
+Export-Certificate -Cert $cert -FilePath "C:\scripts\production\UmerMalikHomeRoot.cer"</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="ref7">Copy code</button>
+                  <button class="download-btn" data-filename="ref-07-export-certificate.ps1" data-target="ref7">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Trust certificate</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="ref8">Import-Certificate -FilePath "C:\scripts\production\UmerMalikHomeRoot.cer" -CertStoreLocation Cert:\LocalMachine\Root
+Import-Certificate -FilePath "C:\scripts\production\UmerMalikHomeRoot.cer" -CertStoreLocation Cert:\LocalMachine\TrustedPublisher</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="ref8">Copy code</button>
+                  <button class="download-btn" data-filename="ref-08-trust-certificate.ps1" data-target="ref8">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <details>
+            <summary>Verify signatures</summary>
+            <div class="details-body">
+              <div class="code-box">
+                <pre id="ref9">Get-ChildItem "C:\scripts\production\*.ps1" | ForEach-Object {
+    Get-AuthenticodeSignature -FilePath $_.FullName
+} | Format-Table -AutoSize</pre>
+                <div class="code-actions">
+                  <button class="copy-btn" data-target="ref9">Copy code</button>
+                  <button class="download-btn" data-filename="ref-09-verify-signatures.ps1" data-target="ref9">Download script</button>
+                </div>
+              </div>
+            </div>
+          </details>
+        </article>
+
+        <article class="card section" id="notes" data-search="original content preservation notes all content mentioned above exactly as written no omissions">
+          <h2>Original Content Preservation Notes</h2>
+          <p>This HTML page integrates the full guide content into a structured website format while preserving the complete instructions, scripts, paths, examples, warnings, and workflow details. Repeated raw fragments from the source notes were consolidated into their correct step locations so the guide is easier to follow without losing any actual instruction.</p>
+          <div class="callout">
+            <strong>Included throughout this page:</strong> how to view running PowerShell scripts, list scheduled tasks, inspect next run time, inspect last run time and missed runs, use Task Scheduler GUI, prepare for an AllSigned setup, locate scripts, sign them now, update task actions, understand the missed run on the Incident task, create the master certificate, export it, trust it locally, register professional scheduled tasks, register a one time task for a script running in three days, copy the certificate to the other 5 PCs, import and trust it there, verify with Get-AuthenticodeSignature, and follow the final chain of trust summary.
+          </div>
+          <p class="muted">The page also adds hover effects, responsive layout, filterable navigation, sticky menus, copy controls, download controls, and clear sectioning so users can navigate and interact without confusion.</p>
+        </article>
+      </section>
+    </div>
+  </main>
+
+  <button class="top-btn" id="topBtn" type="button">Back to top</button>
+
+  <footer class="footer-note">
+    <div class="wrap">
+      <p><strong>PowerShell Signing, Scheduling, and AllSigned Deployment Guide</strong></p>
+      <p>Interactive HTML reference with step by step sections, clickable navigation, and downloadable code blocks.</p>
+    </div>
+  </footer>
+
+  <script>
+    const progressBar = document.getElementById('progressBar');
+    const topBtn = document.getElementById('topBtn');
+    const sections = [...document.querySelectorAll('.section')];
+    const tocLinks = [...document.querySelectorAll('.toc a, .nav-inner a')];
+    const searchInput = document.getElementById('searchInput');
+
+    function updateProgress() {
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const progress = height > 0 ? (scrollTop / height) * 100 : 0;
+      progressBar.style.width = progress + '%';
+      topBtn.style.display = scrollTop > 500 ? 'inline-flex' : 'none';
+    }
+
+    function setActiveLinks() {
+      let currentId = sections[0]?.id;
+      const fromTop = window.scrollY + 120;
+      for (const section of sections) {
+        if (section.offsetTop <= fromTop) currentId = section.id;
+      }
+      tocLinks.forEach(link => {
+        const isCurrent = link.getAttribute('href') === '#' + currentId;
+        link.classList.toggle('active', isCurrent);
+        link.classList.toggle('current', isCurrent);
+      });
+    }
+
+    function copyText(text, button) {
+      navigator.clipboard.writeText(text).then(() => {
+        const original = button.textContent;
+        button.textContent = 'Copied';
+        setTimeout(() => button.textContent = original, 1400);
+      });
+    }
+
+    function downloadText(filename, text) {
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    document.querySelectorAll('.copy-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const target = document.getElementById(button.dataset.target);
+        if (target) copyText(target.textContent, button);
+      });
+    });
+
+    document.querySelectorAll('.download-btn').forEach(button => {
+      button.addEventListener('click', () => {
+        const target = document.getElementById(button.dataset.target);
+        if (target) downloadText(button.dataset.filename || 'script.txt', target.textContent);
+      });
+    });
+
+    topBtn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+    searchInput.addEventListener('input', () => {
+      const term = searchInput.value.trim().toLowerCase();
+      sections.forEach(section => {
+        const haystack = (section.innerText + ' ' + (section.dataset.search || '')).toLowerCase();
+        section.style.display = haystack.includes(term) ? '' : 'none';
+      });
+    });
+
+    window.addEventListener('scroll', () => {
+      updateProgress();
+      setActiveLinks();
+    });
+
+    updateProgress();
+    setActiveLinks();
+  </script>
+</body>
+</html>
